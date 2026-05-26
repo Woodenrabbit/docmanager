@@ -1,0 +1,59 @@
+.dropzone {
+  margin: 16px;
+  padding: 24px;
+  border: 2px dashed var(--color-border);
+  border-radius: 12px;
+  text-align: center;
+  transition: border-color 0.2s, background-color 0.2s;
+  cursor: default;
+}
+
+.dropzone-active {
+  border-color: var(--color-primary);
+  background-color: #e8f0fe;
+}
+
+.dropzone-importing {
+  border-color: var(--color-primary);
+  opacity: 0.8;
+}
+
+.dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.dropzone-icon {
+  font-size: 36px;
+  margin-bottom: 4px;
+}
+
+.dropzone-content p {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.dropzone-content strong {
+  color: var(--color-text);
+}
+
+.dropzone-hint {
+  font-size: 12px !important;
+  color: #aaa !important;
+}
+
+.dropzone-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

@@ -1,0 +1,80 @@
+.title-bar {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  background: var(--color-primary);
+  color: #ffffff;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.title-bar-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 12px;
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-app-icon {
+  font-size: 14px;
+}
+
+.title-bar-app-name {
+  font-size: 12px;
+  opacity: 0.9;
+  margin-right: 10px;
+}
+
+.title-bar-export-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-app-region: no-drag;
+  transition: background-color 0.15s;
+}
+
+.title-bar-export-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.title-bar-export-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.title-bar-controls {
+  display: flex;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+}
+
+.win-btn {
+  width: 46px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  -webkit-app-region: no-drag;
+  transition: background-color 0.1s;
+}
+
+.win-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.win-btn-close:hover {
+  background: #e81123;
+  color: white;
+}
