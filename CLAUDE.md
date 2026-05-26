@@ -2,123 +2,120 @@
 
 ## 项目定位
 
-Electron 桌面文档管理工具。用户有大量学校访问方式文档（txt/doc/xlsx），需要拖放导入、自动分类、全文搜索。
+Electron 桌面文档管理工具。拖放导入 txt/doc/xlsx，自动分类，全文搜索，VS Code 风格界面。
 
 ## 技术栈
 
-- **框架**: Electron 35 + electron-vite 5
+- **框架**: Electron 35 + electron-vite 5 (frame: false 自定义标题栏)
 - **前端**: React 18 + TypeScript + Zustand 5
 - **文档解析**: mammoth (docx) + xlsx (xlsx) + fs (txt)
-- **数据存储**: JSON 文件 (`%APPDATA%/docmanager/app-data/documents.json`)
+- **数据存储**: JSON (`%APPDATA%/docmanager/app-data/documents.json`)
+- **打包导出**: archiver (ZipArchive) → ZIP
+- **通知音**: Web Audio API (utils/sound.ts)
 - **打包**: electron-builder
 
 ## 目录结构
 
 ```
 docmanager-v0/
-├── index.html                       # 渲染进程 HTML 入口（electron-vite 要求根目录）
-├── electron.vite.config.ts          # electron-vite 配置
+├── index.html
+├── electron.vite.config.ts
 ├── electron-builder.yml
 ├── tsconfig.json / tsconfig.node.json
 ├── src/
-│   ├── main/                        # Electron 主进程
-│   │   ├── index.ts                 # BrowserWindow 创建、生命周期
+│   ├── main/
+│   │   ├── index.ts                 # BrowserWindow (frame:false), 生命周期
 │   │   ├── ipc/
-│   │   │   ├── index.ts             # 注册所有 IPC handlers
-│   │   │   ├── documents.ts         # 导入、搜索、删除、分类逻辑
-│   │   │   └── storage.ts           # JSON 文件读写
+│   │   │   ├── index.ts             # 注册所有 IPC + 窗口控制 + 导出
+│   │   │   ├── documents.ts         # 导入/搜索/删除/分类/标签 CRUD
+│   │   │   └── storage.ts           # JSON 读写
 │   │   └── parsers/
-│   │       ├── txt.ts               # UTF-8 读取
+│   │       ├── txt.ts
 │   │       ├── docx.ts              # mammoth.extractRawText
-│   │       └── xlsx.ts              # xlsx sheet_to_csv
+│   │       └── xlsx.ts              # xlsx sheet_to_csv + 清理空csv行
 │   ├── preload/
-│   │   └── index.ts                 # contextBridge API + webUtils.getPathForFile
+│   │   └── index.ts                 # contextBridge + webUtils.getPathForFile
 │   └── renderer/
-│       ├── index.html
-│       ├── main.tsx                  # React 入口
-│       ├── App.tsx                   # 初始化 store、错误处理、键盘事件
-│       ├── env.d.ts                  # window.electronAPI 类型声明
+│       ├── App.tsx                   # store 初始化、错误 banner、Escape 快捷键
+│       ├── env.d.ts
 │       ├── types/index.ts            # ImportedDoc, SearchResult
-│       ├── stores/appStore.ts        # Zustand 全局状态
+│       ├── utils/sound.ts            # 成功/错误提示音
+│       ├── stores/appStore.ts        # Zustand
 │       ├── components/
-│       │   ├── layout/AppLayout      # 双栏布局 (侧边栏 + 主内容区)
-│       │   ├── search/SearchBar      # 主搜索框，200ms 防抖
-│       │   ├── dropzone/DropZone     # 拖放导入区域
-│       │   ├── results/SearchResults # 搜索结果列表 + 关键字高亮
-│       │   ├── preview/DocPreview    # 右侧滑出预览面板
-│       │   └── sidebar/CategorySidebar # 分类侧边栏
+│       │   ├── layout/
+│       │   │   ├── TitleBar          # 自定义标题栏（打包按钮+窗口控制）
+│       │   │   ├── AppBar            # 最左侧48px活动栏
+│       │   │   ├── AppLayout         # 整体布局+侧栏拖拽调整
+│       │   │   └── StatusBar         # 底部状态栏（文档数/分类）
+│       │   ├── search/SearchBar      # 200ms防抖全文搜索
+│       │   ├── dropzone/DropZone     # 拖放导入
+│       │   ├── results/SearchResults # 搜索结果+右键菜单
+│       │   ├── preview/DocPreview    # 预览面板（支持滚动定位+高亮）
+│       │   └── sidebar/CategorySidebar # 文件名搜索+折叠分类树+右键改分类
 │       └── styles/
-│           ├── globals.css           # CSS reset
-│           └── variables.css         # CSS 变量
+│           ├── globals.css
+│           └── variables.css
 ```
 
 ## 数据模型
 
 ```typescript
 interface ImportedDoc {
-  id: string;               // 时间戳+随机数生成
+  id: string;
   fileName: string;
   originalPath: string;
   fileType: 'txt' | 'docx' | 'xlsx';
-  content: string;          // 完整提取文本
-  contentPreview: string;   // 前200字符
-  category: string;         // 自动分类
-  tags: string[];           // 自动标签
+  content: string;
+  contentPreview: string;  // 前200字符
+  category: string;
+  tags: string[];           // 登录凭证/网址链接/联系方式/操作指南
   fileSize: number;
   importedAt: number;
 }
-
-interface SearchResult {
-  doc: ImportedDoc;
-  matches: Array<{ snippet: string; position: number }>;
-  score: number;            // 匹配次数
-}
 ```
 
-## IPC 通道
+## IPC 通道全表
 
-| 通道 | 方向 | 请求 | 响应 |
-|---|---|---|---|
-| `doc:import` | renderer→main | `{ filePaths: string[] }` | `ImportedDoc[]` |
-| `doc:search` | renderer→main | `{ query: string }` | `SearchResult[]` |
-| `doc:get-all` | renderer→main | void | `ImportedDoc[]` |
-| `doc:get-by-id` | renderer→main | `{ id: string }` | `ImportedDoc \| null` |
-| `doc:delete` | renderer→main | `{ id: string }` | void |
-| `doc:get-categories` | renderer→main | void | `string[]` |
-| `app:data-dir` | renderer→main | void | `string` |
-
-preload 额外暴露: `getFilePath(file: File): string` — 使用 `webUtils.getPathForFile()`
+| 通道 | 方向 | 用途 |
+|---|---|---|
+| `doc:import` | r→m | 导入文件 |
+| `doc:search` | r→m | 全文搜索 |
+| `doc:get-all` | r→m | 获取全部文档 |
+| `doc:get-by-id` | r→m | 获取单个文档 |
+| `doc:delete` | r→m | 删除文档 |
+| `doc:get-categories` | r→m | 获取分类列表 |
+| `doc:update-tags` | r→m | 更新标签 |
+| `doc:update-category` | r→m | 更新分类 |
+| `doc:export-all` | r→m | 打包导出 ZIP |
+| `shell:open-path` | r→m | 系统默认程序打开 |
+| `win:minimize/maximize/close/is-maximized` | r→m | 窗口控制 |
+| `app:data-dir` | r→m | 获取数据目录 |
 
 ## 关键设计决策
 
-1. **安全配置**: `nodeIntegration: false, contextIsolation: true, sandbox: true`, `autoHideMenuBar: true` (隐藏默认菜单栏)
-2. **拖放路径获取**: 通过 preload 的 `webUtils.getPathForFile()`, 不用 `File.path`(沙箱禁用)
-3. **搜索**: 全在主进程做（文档数据在主进程内存），子字符串匹配，返回±40字符上下文片段
-4. **分类**: 关键字正则匹配，8个分类+1个兜底。规则在 `documents.ts` 的 `classifyDocument()`
-5. **数据持久化**: 启动读 JSON → 内存 → 操作 → 写回 JSON。无增量写入。
-6. **预览截断**: 无截断，全文展示。
-7. **目录结构**: 使用 electron-vite 默认约定 (src/main/, src/preload/, src/renderer/)
-8. **侧边栏**: 顶部文件名搜索框 + 分类树（可折叠展开，点击箭头折叠/展开，点击分类名筛选，点击文件名预览）
-9. **搜索结果交互**: 点击文件标题 → 打开预览面板；点击匹配片段 → 打开预览并滚动到匹配位置+高亮
-10. **右侧结果联动左侧**: 右侧搜索/显示结果受左侧分类+文件名筛选条件的约束
-11. **右键菜单**: 右键文件条目 → 「用默认程序打开」打开原始文件、「标签」列表勾选/取消标签
-12. **标签编辑**: `doc:update-tags` IPC 通道，主进程更新 JSON 并回传更新后的文档
+1. **frame: false** — 自定义标题栏替代系统标题栏，顶部放打包按钮
+2. **webUtils.getPathForFile** — 沙箱安全模式下获取拖放文件路径
+3. **搜索全在主进程** — 文档数据在主进程内存，子串匹配，返回±40字符上下文
+4. **分类** — 关键字正则匹配 (classifyDocument)，支持手动改为任意自定义分类名
+5. **侧栏联动** — 右侧搜索结果受左侧 activeCategory + fileNameQuery 约束
+6. **点击片段** → openPreviewWithHighlight → DocPreview scrollIntoView + mark 高亮
+7. **Excel 清洗** — cleanCsvLine 过滤全空行、合并连续逗号、去行尾逗号
+8. **ZIP 导出** — archiver v7 API: new ZipArchive({zlib:{level:9}}) 而非 archiver(format, opts)
+9. **窗口拖拽** — title-bar 整体 -webkit-app-region:drag，按钮 no-drag
+10. **应用状态用alert弹窗提示**
 
-## 已知问题和注意事项
+## 常见踩坑
 
-- `D:\workplace\electron-starter` 是旧目录，`node_modules/electron` 被锁定，无法删除。当前工作目录是 `docmanager-v0`
-- 启动后 Electron 可能在后台运行，需要关闭所有 Electron 进程后重新 `npm run dev`
-- Excel 文件用 `sheet_to_csv` 转换，复杂格式可能丢失
-- 搜索是大小写不敏感的简单子串匹配，不支持正则或分词
-- mammoth 只能解析 docx 的文字，不能解析图片、表格格式
-- JSON 文件随文档增多会变大，但没有索引优化
-- `sandbox: true` 下 `File.path` 不可用是预期行为，已用 `webUtils` 解决
+- `archiver` v7 不再 export 函数，用 `new ZipArchive(opts)`
+- `archiver` 需 externalize，否则打包后 `self._module.on is not a function`
+- `sandbox:true` 下渲染进程 `File.path` 不可用，用 preload 的 `webUtils`
+- electron-vite 约定 src/main/, src/preload/, src/renderer/ 目录结构
+- index.html 必须放在 renderer 目录内（electron-vite 要求）
 
 ## 常用命令
 
 ```bash
-npm run dev          # 开发模式（HMR）
+npm run dev          # 开发模式
 npm run build        # 生产构建
-npm run preview      # 预览生产构建
 npm run package      # electron-builder 打包
 ```
