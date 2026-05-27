@@ -13,6 +13,9 @@ export default function CategorySidebar() {
     setFileNameQuery,
     openPreview,
     updateDocCategory,
+    importFiles,
+    isImporting,
+    setMessage,
   } = useAppStore();
 
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
@@ -24,6 +27,7 @@ export default function CategorySidebar() {
     y: number;
   } | null>(null);
   const [newCatInput, setNewCatInput] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const filteredDocs = useMemo(() => {
     let docs = activeCategory
@@ -97,6 +101,54 @@ export default function CategorySidebar() {
     setContextMenu(null);
     setNewCatInput('');
   }, [contextMenu, newCatInput, updateDocCategory]);
+
+  const handleUploadDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleUploadDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const doImport = useCallback(
+    async (paths: string[]) => {
+      const VALID = ['.txt', '.doc', '.docx', '.xls', '.xlsx'];
+      const filtered = paths.filter((p) =>
+        VALID.some((ext) => p.toLowerCase().endsWith(ext)),
+      );
+      if (filtered.length === 0) return;
+      await importFiles(filtered);
+      setMessage(`成功导入 ${filtered.length} 个文档`);
+    },
+    [importFiles],
+  );
+
+  const handleUploadDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+
+      const paths: string[] = [];
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        const p = window.electronAPI.getFilePath(e.dataTransfer.files[i]);
+        if (p) paths.push(p);
+      }
+      if (paths.length > 0) await doImport(paths);
+    },
+    [doImport],
+  );
+
+  const handleUploadClick = useCallback(async () => {
+    const result = await window.electronAPI.openFilesDialog();
+    if (!result.canceled && result.filePaths.length > 0) {
+      await doImport(result.filePaths);
+    }
+  }, [doImport]);
 
   return (
     <div className="category-sidebar" onClick={closeContextMenu}>
@@ -183,6 +235,25 @@ export default function CategorySidebar() {
             </div>
           );
         })}
+      </div>
+
+      <div
+        className={`sidebar-upload-zone ${isDragOver ? 'sidebar-upload-dragover' : ''} ${isImporting ? 'sidebar-upload-importing' : ''}`}
+        onDragOver={handleUploadDragOver}
+        onDragLeave={handleUploadDragLeave}
+        onDrop={handleUploadDrop}
+        onClick={handleUploadClick}
+      >
+        {isImporting ? (
+          <span className="sidebar-upload-text">导入中...</span>
+        ) : isDragOver ? (
+          <span className="sidebar-upload-text">松开即可导入</span>
+        ) : (
+          <>
+            <span className="sidebar-upload-text">+ 导入文档</span>
+            <span className="sidebar-upload-hint">拖放文件到此处</span>
+          </>
+        )}
       </div>
 
       {/* Context menu */}

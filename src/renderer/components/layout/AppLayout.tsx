@@ -4,9 +4,10 @@ import TitleBar from './TitleBar';
 import StatusBar from './StatusBar';
 import CategorySidebar from '../sidebar/CategorySidebar';
 import SearchBar from '../search/SearchBar';
-import DropZone from '../dropzone/DropZone';
 import SearchResults from '../results/SearchResults';
 import DocPreview from '../preview/DocPreview';
+import ImportPage from '../import/ImportPage';
+import { useAppStore } from '../../stores/appStore';
 import './AppLayout.css';
 
 const MIN_SIDEBAR = 160;
@@ -17,6 +18,7 @@ export default function AppLayout() {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR);
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const activeView = useAppStore((s) => s.activeView);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -57,20 +59,25 @@ export default function AppLayout() {
       <div className="app-body">
         <AppBar />
 
-        <div className="sidebar-panel" style={{ width: sidebarWidth }}>
-          <CategorySidebar />
-        </div>
+        {activeView === 'import' ? (
+          <ImportPage />
+        ) : (
+          <>
+            <div className="sidebar-panel" style={{ width: sidebarWidth }}>
+              <CategorySidebar />
+            </div>
 
-        <div
-          className={`sidebar-resize-handle ${isResizing ? 'resizing' : ''}`}
-          onMouseDown={handleMouseDown}
-        />
+            <div
+              className={`sidebar-resize-handle ${isResizing ? 'resizing' : ''}`}
+              onMouseDown={handleMouseDown}
+            />
 
-        <main className="app-main">
-          <SearchBar />
-          <DropZone />
-          <SearchResults />
-        </main>
+            <main className="app-main">
+              <SearchBar />
+              <SearchResults />
+            </main>
+          </>
+        )}
       </div>
 
       <StatusBar />

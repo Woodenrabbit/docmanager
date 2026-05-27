@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAppStore } from './stores/appStore';
 import AppLayout from './components/layout/AppLayout';
+import Toast from './components/layout/Toast';
 
 export default function App() {
   const { initialize, isLoading, error, clearError, closePreview, isPreviewOpen } =
@@ -75,6 +76,7 @@ export default function App() {
         </div>
       )}
       <AppLayout />
+      <Toast />
     </>
   );
 }

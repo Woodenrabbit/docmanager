@@ -12,6 +12,19 @@ export function registerAllHandlers() {
     return importFiles(filePaths);
   });
 
+  ipcMain.handle('dialog:open-files', async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) return { canceled: true, filePaths: [] };
+    const result = await dialog.showOpenDialog(win, {
+      title: '选择要导入的文档',
+      filters: [
+        { name: '文档文件', extensions: ['txt', 'doc', 'docx', 'xls', 'xlsx'] },
+      ],
+      properties: ['openFile', 'multiSelections'],
+    });
+    return { canceled: result.canceled, filePaths: result.filePaths };
+  });
+
   ipcMain.handle('doc:search', async (_event, { query }) => {
     return searchDocs(query);
   });

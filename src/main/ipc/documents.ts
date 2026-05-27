@@ -2,7 +2,7 @@ import { loadDocs, saveDocs } from './storage';
 import { parseTxt, getFileInfo } from '../parsers/txt';
 import { parseDocx } from '../parsers/docx';
 import { parseXlsx } from '../parsers/xlsx';
-import { extname } from 'path';
+import { extname, resolve } from 'path';
 
 interface ImportedDoc {
   id: string;
@@ -96,36 +96,48 @@ async function parseFile(filePath: string): Promise<{ content: string; fileType:
 
 export async function importFiles(filePaths: string[]): Promise<ImportedDoc[]> {
   const existingDocs = loadDocs() as ImportedDoc[];
-  const newDocs: ImportedDoc[] = [];
+  const result: ImportedDoc[] = [];
 
   for (const filePath of filePaths) {
     try {
-      const info = getFileInfo(filePath);
-      const { content, fileType } = await parseFile(filePath);
+      const normalizedPath = resolve(filePath);
+      const info = getFileInfo(normalizedPath);
+      const { content, fileType } = await parseFile(normalizedPath);
       const { category, tags } = classifyDocument(content, info.fileName);
 
-      const doc: ImportedDoc = {
-        id: generateId(),
-        fileName: info.fileName,
-        originalPath: filePath,
-        fileType,
-        content,
-        contentPreview: makePreview(content),
-        category,
-        tags,
-        fileSize: info.fileSize,
-        importedAt: Date.now(),
-      };
+      const existing = existingDocs.find((d) => resolve(d.originalPath) === normalizedPath);
 
-      newDocs.push(doc);
+      if (existing) {
+        existing.content = content;
+        existing.contentPreview = makePreview(content);
+        existing.category = category;
+        existing.tags = tags;
+        existing.fileSize = info.fileSize;
+        existing.importedAt = Date.now();
+        result.push(existing);
+      } else {
+        const doc: ImportedDoc = {
+          id: generateId(),
+          fileName: info.fileName,
+          originalPath: normalizedPath,
+          fileType,
+          content,
+          contentPreview: makePreview(content),
+          category,
+          tags,
+          fileSize: info.fileSize,
+          importedAt: Date.now(),
+        };
+        existingDocs.push(doc);
+        result.push(doc);
+      }
     } catch (err: any) {
       console.error(`Failed to import ${filePath}:`, err.message);
     }
   }
 
-  const allDocs = [...existingDocs, ...newDocs];
-  saveDocs(allDocs);
-  return newDocs;
+  saveDocs(existingDocs);
+  return result;
 }
 
 export function getAllDocs(): ImportedDoc[] {

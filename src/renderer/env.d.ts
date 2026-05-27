@@ -2,6 +2,7 @@ import type { ImportedDoc, SearchResult } from './types';
 
 interface ElectronAPI {
   importFiles: (filePaths: string[]) => Promise<ImportedDoc[]>;
+  openFilesDialog: () => Promise<{ canceled: boolean; filePaths: string[] }>;
   search: (query: string) => Promise<SearchResult[]>;
   getAllDocs: () => Promise<ImportedDoc[]>;
   getDocById: (id: string) => Promise<ImportedDoc | null>;

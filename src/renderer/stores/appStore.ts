@@ -6,6 +6,8 @@ interface AppState {
   documents: ImportedDoc[];
   categories: string[];
 
+  activeView: 'explorer' | 'import';
+
   searchQuery: string;
   searchResults: SearchResult[];
   isSearching: boolean;
@@ -21,12 +23,14 @@ interface AppState {
   isLoading: boolean;
   isImporting: boolean;
   error: string | null;
+  message: string | null;
 
   initialize: () => Promise<void>;
   importFiles: (paths: string[]) => Promise<void>;
   search: (query: string) => Promise<void>;
   setActiveCategory: (cat: string | null) => void;
   setFileNameQuery: (q: string) => void;
+  setActiveView: (view: 'explorer' | 'import') => void;
   openPreview: (doc: ImportedDoc) => void;
   openPreviewWithHighlight: (doc: ImportedDoc, query: string, scrollTo: number) => void;
   closePreview: () => void;
@@ -34,6 +38,8 @@ interface AppState {
   updateDocTags: (id: string, tags: string[]) => Promise<void>;
   updateDocCategory: (id: string, category: string) => Promise<void>;
   clearError: () => void;
+  setMessage: (msg: string) => void;
+  clearMessage: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -47,6 +53,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeCategory: null,
   fileNameQuery: '',
 
+  activeView: 'explorer',
+
   previewDoc: null,
   isPreviewOpen: false,
   previewScrollTo: null,
@@ -55,6 +63,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoading: false,
   isImporting: false,
   error: null,
+  message: null,
 
   initialize: async () => {
     set({ isLoading: true });
@@ -73,10 +82,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isImporting: true });
     try {
       const newDocs = await window.electronAPI.importFiles(paths);
-      const allDocs = [...get().documents, ...newDocs];
+      const merged = [...get().documents];
+      for (const doc of newDocs) {
+        const idx = merged.findIndex((d) => d.id === doc.id);
+        if (idx !== -1) {
+          merged[idx] = doc;
+        } else {
+          merged.push(doc);
+        }
+      }
       const cats = await window.electronAPI.getCategories();
       set({
-        documents: allDocs,
+        documents: merged,
         categories: cats,
         isImporting: false,
         error: null,
@@ -107,6 +124,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setFileNameQuery: (q) => {
     set({ fileNameQuery: q });
+  },
+
+  setActiveView: (view) => {
+    set({ activeView: view });
   },
 
   openPreview: (doc) => {
@@ -174,4 +195,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+  setMessage: (msg) => set({ message: msg }),
+  clearMessage: () => set({ message: null }),
 }));

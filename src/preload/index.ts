@@ -4,6 +4,9 @@ const electronAPI = {
   importFiles: (filePaths: string[]) =>
     ipcRenderer.invoke('doc:import', { filePaths }),
 
+  openFilesDialog: () =>
+    ipcRenderer.invoke('dialog:open-files'),
+
   search: (query: string) =>
     ipcRenderer.invoke('doc:search', { query }),
 

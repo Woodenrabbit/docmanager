@@ -9,6 +9,10 @@
   user-select: none;
 }
 
+.app-bar-spacer {
+  flex: 1;
+}
+
 .app-bar-icon {
   width: 40px;
   height: 40px;
